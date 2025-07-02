@@ -144,6 +144,11 @@ function detectDuplicateFunctions(projectRoot: string): void {
   // Initialize ignore handler
   const ignoreHandler = new IgnoreHandler(projectRoot);
 
+  // Provide helpful information about ignore patterns
+  if (ignoreHandler.isUsingDefaults()) {
+    console.log('💡 Tip: Create a .ignore file in your project root to customize ignore patterns');
+  }
+
   // Clear any existing hash groups from previous runs
   clearHashGroups();
 
@@ -164,9 +169,39 @@ function detectDuplicateFunctions(projectRoot: string): void {
 }
 
 function main(): void {
-  // Get directory path from command line arguments
+  // Get directory path and options from command line arguments
   const args = process.argv.slice(2);
-  const projectRoot = args[0] || process.cwd();
+
+  // Check for special commands
+  if (args.includes('--create-ignore') || args.includes('-ci')) {
+    const projectRoot = args.find(arg => !arg.startsWith('-')) || process.cwd();
+    const ignoreHandler = new IgnoreHandler(projectRoot);
+    ignoreHandler.createSampleIgnoreFile();
+    return;
+  }
+
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+Duplicate Detector - Find duplicate functions in your codebase
+
+Usage:
+  pnpm dev [directory]                  # Scan directory for duplicates
+  pnpm dev --create-ignore [directory]  # Create sample .ignore file
+  pnpm dev --help                       # Show this help
+
+Options:
+  --create-ignore, -ci    Create a sample .ignore file with default patterns
+  --help, -h              Show help information
+
+Examples:
+  pnpm dev                              # Scan current directory
+  pnpm dev ./my-project                 # Scan specific directory
+  pnpm dev --create-ignore ./my-project # Create .ignore file in project
+`);
+    return;
+  }
+
+  const projectRoot = args.find(arg => !arg.startsWith('-')) || process.cwd();
 
   // Ensure the provided path exists and is a directory
   if (!fs.existsSync(projectRoot)) {
