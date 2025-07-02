@@ -1,0 +1,50 @@
+# Dependency directories
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Build output
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# Test directories
+coverage/
+.nyc_output/
+test-results/
+
+# Generated files
+*.generated.ts
+*.generated.js
+*.d.ts
+
+# Third-party libraries
+vendor/
+lib/
+libs/
+
+# Configuration files (often auto-generated)
+*.config.js
+*.config.ts
+webpack.config.*
+vite.config.*
+rollup.config.*
+
+# Documentation
+docs/
+*.md
+*.mdx
+
+# Development files
+.vscode/
+.idea/
+*.log
+*.tmp
+
+# Specific files to ignore
+setup.js
+setup.ts
+polyfills.js
+polyfills.ts

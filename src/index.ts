@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import { FunctionInfo, parseFile, isTsJsFile } from './FunctionFinder';
 import { processFunctionForHashing, getDuplicateHashGroups, clearHashGroups } from './ConvertToHash';
+import { IgnoreHandler } from './IgnoreHandler';
 
 /**
  * Interface for duplicate function reporting
@@ -22,20 +23,27 @@ interface DuplicateFunction {
 }
 
 /**
- * Reads all files from a directory recursively
+ * Reads all files from a directory recursively, respecting ignore patterns
  * @param dirPath - Path to the directory (project root)
+ * @param ignoreHandler - Handler for ignore patterns
  * @param fileList - List to store file paths
  * @returns Array of file paths
  */
-function readFilesRecursively(dirPath: string, fileList: string[] = []): string[] {
+function readFilesRecursively(dirPath: string, ignoreHandler: IgnoreHandler, fileList: string[] = []): string[] {
   const files = fs.readdirSync(dirPath);
 
   files.forEach(file => {
     const filePath = path.join(dirPath, file);
+
+    // Check if this path should be ignored
+    if (ignoreHandler.shouldIgnore(filePath)) {
+      return; // Skip this file/directory
+    }
+
     const stat = fs.statSync(filePath);
 
     if (stat.isDirectory()) {
-      readFilesRecursively(filePath, fileList);
+      readFilesRecursively(filePath, ignoreHandler, fileList);
     } else {
       fileList.push(filePath);
     }
@@ -133,12 +141,15 @@ function detectDuplicateFunctions(projectRoot: string): void {
   console.log('Node.js version:', process.version);
   console.log(`Scanning project directory: ${projectRoot}`);
 
+  // Initialize ignore handler
+  const ignoreHandler = new IgnoreHandler(projectRoot);
+
   // Clear any existing hash groups from previous runs
   clearHashGroups();
 
   // Step 3: Scan all files in the project and locate TypeScript/JavaScript files
-  const allFiles = readFilesRecursively(projectRoot);
-  console.log(`Found ${allFiles.length} files`);
+  const allFiles = readFilesRecursively(projectRoot, ignoreHandler);
+  console.log(`Found ${allFiles.length} files (after applying ignore patterns)`);
 
   const tsJsFiles = filterTsJsFiles(allFiles);
   console.log(`Found ${tsJsFiles.length} TypeScript/JavaScript files`);
