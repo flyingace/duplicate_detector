@@ -1,0 +1,19 @@
+[
+  {
+    "name": "processData",
+    "occurrences": [
+      {
+        "filePath": "src/test/file1.ts",
+        "lineNumber": 22
+      },
+      {
+        "filePath": "src/test/file2.ts",
+        "lineNumber": 11
+      },
+      {
+        "filePath": "src/test/file3.ts",
+        "lineNumber": 6
+      }
+    ]
+  }
+]

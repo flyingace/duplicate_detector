@@ -1,0 +1,24 @@
+{
+  "name": "duplicate-detector",
+  "version": "1.0.0",
+  "description": "A tool to detect duplicate code",
+  "main": "dist/index.js",
+  "engines": {
+    "node": "20.13.1"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.0.8",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
