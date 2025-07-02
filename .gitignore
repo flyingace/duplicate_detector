@@ -25,3 +25,6 @@ pnpm-debug.log*
 *.swp
 *.swo
 .DS_Store
+
+# generated reports
+reports/
