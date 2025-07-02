@@ -1,18 +1,29 @@
 /**
  * Duplicate Detector
- * 
+ *
  * A tool to detect duplicate code in a codebase.
- * Detects duplicate TypeScript/JavaScript function declarations across files.
+ * Detects duplicate TypeScript/JavaScript function declarations across files using hash-based comparison.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { FunctionInfo, parseFile, isTsJsFile } from './FunctionFinder';
-import { DuplicateFunction, findDuplicateFunctions } from './DuplicateFunctionTransformer';
+import { processFunctionForHashing, getDuplicateHashGroups, clearHashGroups } from './ConvertToHash';
+
+/**
+ * Interface for duplicate function reporting
+ */
+interface DuplicateFunction {
+  name: string;
+  occurrences: {
+    filePath: string;
+    lineNumber: number;
+  }[];
+}
 
 /**
  * Reads all files from a directory recursively
- * @param dirPath - Path to the directory
+ * @param dirPath - Path to the directory (project root)
  * @param fileList - List to store file paths
  * @returns Array of file paths
  */
@@ -34,7 +45,7 @@ function readFilesRecursively(dirPath: string, fileList: string[] = []): string[
 }
 
 /**
- * Filters for TypeScript and JavaScript files
+ * Filters for TypeScript and JavaScript files (.js, .jsx, .ts, .tsx)
  * @param filePaths - Array of file paths
  * @returns Array of TypeScript and JavaScript file paths
  */
@@ -43,41 +54,48 @@ function filterTsJsFiles(filePaths: string[]): string[] {
 }
 
 /**
- * Parses multiple files and extracts function declarations
+ * Parses all TypeScript/JavaScript files and processes functions for hash grouping
  * @param filePaths - Array of file paths
- * @returns Array of function information from all files
+ * @returns Total number of functions processed
  */
-function parseFiles(filePaths: string[]): FunctionInfo[] {
-  const allFunctions: FunctionInfo[] = [];
+function parseAndHashFunctions(filePaths: string[]): number {
+  let totalFunctions = 0;
 
   filePaths.forEach(filePath => {
     const functions = parseFile(filePath);
     if (functions) {
-      allFunctions.push(...functions);
+      // Process each function for hash grouping
+      functions.forEach(func => {
+        processFunctionForHashing(func);
+        totalFunctions++;
+      });
     }
   });
 
-  return allFunctions;
+  return totalFunctions;
 }
 
 /**
- * Generates a report of duplicate functions
+ * Generates a report of duplicate functions from hash groups
  * @param duplicates - Array of duplicate function information
+ * @param projectRoot - The root directory of the project
  */
-function generateReport(duplicates: DuplicateFunction[]): void {
+function generateReport(duplicates: DuplicateFunction[], projectRoot: string): void {
   if (duplicates.length === 0) {
     console.log('No duplicate functions found.');
     return;
   }
 
-  console.log(`Found ${duplicates.length} duplicate function declarations:\n`);
+  console.log(`Found ${duplicates.length} duplicate function declarations:`);
 
   duplicates.forEach((duplicate, index) => {
     console.log(`${index + 1}. Function: ${duplicate.name}`);
     console.log('   Occurrences:');
 
     duplicate.occurrences.forEach(occurrence => {
-      console.log(`   - ${occurrence.filePath}:${occurrence.lineNumber}`);
+      // Make file paths relative to project root for cleaner output
+      const relativePath = path.relative(projectRoot, occurrence.filePath);
+      console.log(`   - ${relativePath}:${occurrence.lineNumber}`);
     });
 
     console.log('');
@@ -93,45 +111,65 @@ function generateReport(duplicates: DuplicateFunction[]): void {
   const timestamp = new Date().toISOString().replace(/:/g, '-');
   const reportPath = path.join(reportsDir, `duplicate-functions-${timestamp}.json`);
 
-  fs.writeFileSync(reportPath, JSON.stringify(duplicates, null, 2));
+  // Convert absolute paths to relative paths in the JSON report
+  const reportData = duplicates.map(duplicate => ({
+    ...duplicate,
+    occurrences: duplicate.occurrences.map(occurrence => ({
+      ...occurrence,
+      filePath: path.relative(projectRoot, occurrence.filePath)
+    }))
+  }));
+
+  fs.writeFileSync(reportPath, JSON.stringify(reportData, null, 2));
   console.log(`Report saved to: ${reportPath}`);
 }
 
 /**
- * Main function to detect duplicate functions in a directory
- * @param dirPath - Path to the directory to scan
+ * Main function to detect duplicate functions in a project directory
+ * @param projectRoot - Path to the project's root directory
  */
-function detectDuplicateFunctions(dirPath: string): void {
-  console.log(`Scanning directory: ${dirPath}`);
+function detectDuplicateFunctions(projectRoot: string): void {
+  console.log('Duplicate Detector initialized');
+  console.log('Node.js version:', process.version);
+  console.log(`Scanning project directory: ${projectRoot}`);
 
-  // Read all files
-  const allFiles = readFilesRecursively(dirPath);
+  // Clear any existing hash groups from previous runs
+  clearHashGroups();
+
+  // Step 3: Scan all files in the project and locate TypeScript/JavaScript files
+  const allFiles = readFilesRecursively(projectRoot);
   console.log(`Found ${allFiles.length} files`);
 
-  // Filter for TypeScript and JavaScript files
   const tsJsFiles = filterTsJsFiles(allFiles);
   console.log(`Found ${tsJsFiles.length} TypeScript/JavaScript files`);
 
-  // Parse files and extract functions
-  const allFunctions = parseFiles(tsJsFiles);
-  console.log(`Found ${allFunctions.length} function declarations`);
+  // Step 4 & 5: Parse each file to locate functions and process them for hashing
+  const totalFunctions = parseAndHashFunctions(tsJsFiles);
+  console.log(`Found ${totalFunctions} function declarations`);
 
-  // Find duplicate functions
-  const duplicates = findDuplicateFunctions(allFunctions);
-
-  // Generate report
-  generateReport(duplicates);
+  // Step 6: Generate report from hash groups
+  const duplicates = getDuplicateHashGroups();
+  generateReport(duplicates, projectRoot);
 }
 
 function main(): void {
-  console.log('Duplicate Detector initialized');
-  console.log('Node.js version:', process.version);
-
   // Get directory path from command line arguments
   const args = process.argv.slice(2);
-  const dirPath = args[0] || process.cwd();
+  const projectRoot = args[0] || process.cwd();
 
-  detectDuplicateFunctions(dirPath);
+  // Ensure the provided path exists and is a directory
+  if (!fs.existsSync(projectRoot)) {
+    console.error(`Error: Directory "${projectRoot}" does not exist.`);
+    process.exit(1);
+  }
+
+  const stat = fs.statSync(projectRoot);
+  if (!stat.isDirectory()) {
+    console.error(`Error: "${projectRoot}" is not a directory.`);
+    process.exit(1);
+  }
+
+  detectDuplicateFunctions(projectRoot);
 }
 
 main();
