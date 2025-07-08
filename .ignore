@@ -48,3 +48,6 @@ setup.js
 setup.ts
 polyfills.js
 polyfills.ts
+
+# Storybook files
+storybook-static/

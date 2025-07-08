@@ -89,7 +89,10 @@ export const DEFAULT_IGNORE_PATTERNS: string[] = [
   'setup.ts',
   'polyfills.js',
   'polyfills.ts',
-  'index.html'
+  'index.html',
+
+  // Storybook files
+  'storybook-static/',
 ];
 
 /**

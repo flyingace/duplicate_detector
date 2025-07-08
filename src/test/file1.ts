@@ -22,3 +22,9 @@ async function fetchData(url: string): Promise<any> {
 function processData(data: number[]): number[] {const result = data.map(item => item * 2);
   return result.filter(item => item > 10);
 }
+
+// This is a different implementation of fetchData
+async function fetchData(id: number): Promise<any> {
+  const response = await fetch(`https://api.example.com/data/${id}`);
+  return response.json();
+}
