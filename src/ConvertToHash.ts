@@ -105,5 +105,8 @@ export function getDuplicateHashGroups(): Array<{
     }
   });
 
+  // Sort duplicates by number of occurrences (highest to lowest)
+  duplicates.sort((a, b) => b.occurrences.length - a.occurrences.length);
+
   return duplicates;
 }

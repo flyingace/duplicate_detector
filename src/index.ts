@@ -14,7 +14,7 @@ import { IgnoreHandler } from './IgnoreHandler';
 /**
  * Interface for duplicate function reporting
  */
-interface DuplicateFunction {
+export interface DuplicateFunction {
   name: string;
   occurrences: {
     filePath: string;
@@ -117,9 +117,10 @@ function generateReport(duplicates: DuplicateFunction[], projectRoot: string): v
 
   // Write report to file
   const timestamp = new Date().toISOString().replace(/:/g, '-');
-  const reportPath = path.join(reportsDir, `duplicate-functions-${timestamp}.json`);
+  const reportFilename = `duplicate-functions-${timestamp}.md`;
+  const reportPath = path.join(reportsDir, reportFilename);
 
-  // Convert absolute paths to relative paths in the JSON report
+  // Convert absolute paths to relative paths in the report data
   const reportData = duplicates.map(duplicate => ({
     ...duplicate,
     occurrences: duplicate.occurrences.map(occurrence => ({
@@ -128,8 +129,73 @@ function generateReport(duplicates: DuplicateFunction[], projectRoot: string): v
     }))
   }));
 
-  fs.writeFileSync(reportPath, JSON.stringify(reportData, null, 2));
+  // Convert the report data to markdown format
+  const markdownContent = convertToMarkdown(reportData, timestamp, reportFilename);
+
+  fs.writeFileSync(reportPath, markdownContent);
   console.log(`Report saved to: ${reportPath}`);
+}
+
+/**
+ * Converts duplicate function data to markdown format
+ * @param duplicates - Array of duplicate function information
+ * @param timestamp - ISO timestamp when the report was generated (optional)
+ * @param reportFilename - Name of the report file (optional)
+ * @returns Markdown formatted string
+ */
+export function convertToMarkdown(
+  duplicates: DuplicateFunction[], 
+  timestamp?: string, 
+  reportFilename?: string
+): string {
+  if (duplicates.length === 0) {
+    return '# Duplicate Functions Report\n\nNo duplicate functions found.';
+  }
+
+  let markdown = '# Duplicate Functions Report\n\n';
+
+  // Add human-readable date and time
+  if (timestamp) {
+    // Parse the ISO timestamp format: 2025-07-08T03-36-25.232Z
+    // First convert it back to standard ISO format by replacing hyphens with colons in the time part
+    const isoTimestamp = timestamp.replace(/(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2}\.\d{3})Z/, '$1T$2:$3:$4Z');
+    const date = new Date(isoTimestamp);
+    markdown += `Report generated on: ${date.toLocaleString()}\n\n`;
+  }
+
+  // Add summary of what's included in the report
+  markdown += `This report contains ${duplicates.length} duplicate function declarations found in the codebase.\n`;
+  markdown += `Functions with the same name but different implementations are marked with an asterisk (*).\n\n`;
+
+  markdown += '<style>\n  table { font-size: calc(1em + 2px); }\n</style>\n\n';
+  markdown += '| Function Name | Occurrences |\n';
+  markdown += '|:--|:-- |\n';
+
+  // Count occurrences of each function name
+  const functionNameCount: Record<string, number> = {};
+  duplicates.forEach(duplicate => {
+    functionNameCount[duplicate.name] = (functionNameCount[duplicate.name] || 0) + 1;
+  });
+
+  duplicates.forEach(duplicate => {
+    const occurrencesList = duplicate.occurrences.map((occurrence, index) => {
+      return `<li>${occurrence.filePath}, line ${occurrence.lineNumber}</li>`;
+    }).join('');
+
+    // Add an asterisk if this function name appears multiple times
+    const nameWithAsterisk = functionNameCount[duplicate.name] > 1 
+      ? `${duplicate.name}*` 
+      : duplicate.name;
+
+    markdown += `| **${nameWithAsterisk}** | <ol>${occurrencesList}</ol> |\n`;
+  });
+
+  // Add the report filename at the bottom
+  if (reportFilename) {
+    markdown += `\n\nReport file: ${reportFilename}`;
+  }
+
+  return markdown;
 }
 
 /**
